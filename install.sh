@@ -47,8 +47,8 @@ function parse_cmd_args() {
             -h | --help) usage && exit 0 ;;
             -d | --directory) directory="$(eval echo $2)" ; shift 1 ;;
             -n | --name) name="$(eval echo $2)" ; shift 1 ;;
-            -g | --group) name="$(eval echo $2)" ; shift 1 ;;
-            -w | --working-directory) name="$(eval echo $2)" ; shift 1 ;;
+            -g | --group) group="$(eval echo $2)" ; shift 1 ;;
+            -w | --working-directory) working_directory="$(eval echo $2)" ; shift 1 ;;
             -r | --repository) repository="$(eval echo $2)" ; shift 1 ;;
             -s | --service) enable_service=true ;;
             -t | --token) token="$(eval echo $2)" ; shift 1 ;;
@@ -144,7 +144,7 @@ EOF
                     --no-default-labels --labels ${name} --work ${working_directory}
         escaped_name=$(echo "${name}" | sed 's#\/#\\/#g')
         escaped_runner_directory=$(echo "${runner_directory}" | sed 's#\/#\\/#g')
-        if [ ${enable_service} ] && [ -d /etc/systemd/system ] ; then
+        if [ ${enable_service} == "true" ] && [ -d /etc/systemd/system ] ; then
             cat ${runner_directory}/bin/actions.runner.service.template | grep -v "User=" | sed "s/{{RunnerRoot}}/${escaped_runner_directory}/g" | sed "s/{{Description}}/Github action runners - ${escaped_name}/g" > /etc/systemd/system/github-runner-${name}.service
             systemctl daemon-reload
             systemctl start github-runner-${name}.service
