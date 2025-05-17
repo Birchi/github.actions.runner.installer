@@ -4,8 +4,11 @@
 ##
 directory=${HOME}/runners
 name=
+group=Default
 repository=
 token=
+working_directory=_work
+enable_service=false
 
 ##
 # Function
@@ -15,21 +18,24 @@ function usage(){
 This script installs a github action runner.
   
 Options:
-  -d, --directory       Defines the install directory of a github action runner. Default value is ${HOME}/runners.
-  -n, --name            Defines name of a runner.
-  -r, --repository      Defines url of a repository.
-  -t, --token           Defines registration token for repository.
-  -h, --help            Shows this message.
+  -d, --directory            Defines the install directory of a github action runner. Default value is ${HOME}/runners.
+  -n, --name                 Defines name of a runner.
+  -g, --group                Defines group of a runner.
+  -w, --working-directory    Defines working directory of a runner.
+  -r, --repository           Defines url of a repository.
+  -t, --token                Defines registration token for repository.
+  -s, --service              Installs a runner as a service.
+  -h, --help                 Shows this message.
   
 Examples:
-  $(dirname $0)/install.sh --name NAME --repository REPO --token TOKEN
+  $(dirname $0)/install.sh --name NAME --group GROUP --repository REPO --token TOKEN
   $(dirname $0)/install.sh -n NAME -r REPO -t TOKEN
 EOF
 }
 
 function parse_cmd_args() {
-    args=$(getopt --options d:n:r:t:h \
-                  --longoptions directory:,name:,repository:,token:,help -- "$@")
+    args=$(getopt --options d:n:g:r:t:w:sh \
+                  --longoptions directory:,name:,group:,repository:,token:,working-directory:,service,help -- "$@")
     
     if [[ $? -ne 0 ]]; then
         echo "Failed to parse arguments!" && usage
@@ -41,7 +47,10 @@ function parse_cmd_args() {
             -h | --help) usage && exit 0 ;;
             -d | --directory) directory="$(eval echo $2)" ; shift 1 ;;
             -n | --name) name="$(eval echo $2)" ; shift 1 ;;
+            -g | --group) name="$(eval echo $2)" ; shift 1 ;;
+            -w | --working-directory) name="$(eval echo $2)" ; shift 1 ;;
             -r | --repository) repository="$(eval echo $2)" ; shift 1 ;;
+            -s | --service) enable_service=true ;;
             -t | --token) token="$(eval echo $2)" ; shift 1 ;;
             --) ;;
              *) ;;
@@ -130,10 +139,12 @@ EOF
         echo "Removing ${file_path}"
         rm ${file_path}
         cd ${runner_directory}
-        ./config.sh --unattended --url ${repository} --token ${token} --replace --name ${name}
+        ./config.sh --unattended --url ${repository} --token ${token} \
+                    --name ${name} --replace --runnergroup ${group} \
+                    --no-default-labels --labels ${name} --work ${working_directory}
         escaped_name=$(echo "${name}" | sed 's#\/#\\/#g')
         escaped_runner_directory=$(echo "${runner_directory}" | sed 's#\/#\\/#g')
-        if [ -d /etc/systemd/system ] ; then
+        if [ ${enable_service} ] && [ -d /etc/systemd/system ] ; then
             cat ${runner_directory}/bin/actions.runner.service.template | grep -v "User=" | sed "s/{{RunnerRoot}}/${escaped_runner_directory}/g" | sed "s/{{Description}}/Github action runners - ${escaped_name}/g" > /etc/systemd/system/github-runner-${name}.service
             systemctl daemon-reload
             systemctl start github-runner-${name}.service
